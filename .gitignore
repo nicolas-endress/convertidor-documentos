@@ -81,3 +81,6 @@ venv/
 ENV/
 env/
 .pytest_cache/
+.github/
+agents/
+Modo Dios.chatmode.md

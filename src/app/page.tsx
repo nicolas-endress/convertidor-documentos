@@ -359,6 +359,8 @@ export default function Home() {
             memoizedRows={memoizedRows}
             listHeight={listHeight}
             setIsExpanded={setIsExpanded}
+            excelBlob={excelBlob}
+            fileName={fileName}
           />
         )}
       </div>

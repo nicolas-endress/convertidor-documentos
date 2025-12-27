@@ -13,6 +13,36 @@ import {
 
 export const runtime = "nodejs";
 
+// URL del backend Python (si está configurado)
+const PYTHON_BACKEND_URL = process.env.PYTHON_BACKEND_URL;
+
+/**
+ * Proxy al backend Python usando SSE
+ */
+async function proxyToPythonBackend(formData: FormData, concurrency: number): Promise<Response> {
+  const pythonUrl = new URL("/convert", PYTHON_BACKEND_URL!);
+  pythonUrl.searchParams.set("concurrency", concurrency.toString());
+
+  const response = await fetch(pythonUrl.toString(), {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Backend Python error: ${errorText}`);
+  }
+
+  // Retransmitir el stream SSE del backend Python
+  return new Response(response.body, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
@@ -26,13 +56,21 @@ export async function POST(request: Request) {
       );
     }
 
-    const returnRegex = pdfFormat === "PERMISO_CIRCULACION";
-    const encoder = new TextEncoder();
-
     // Permite ajustar la concurrencia por query param o variable de entorno
     const url = new URL(request.url);
     const concurrencyParam = url.searchParams.get("concurrency");
     const concurrency = concurrencyParam ? parseInt(concurrencyParam, 10) : parseInt(process.env.PDF_CONCURRENCY || "15", 10);
+
+    // Si está configurado el backend Python, usar proxy
+    if (PYTHON_BACKEND_URL) {
+      logger.info(`Usando backend Python: ${PYTHON_BACKEND_URL}`);
+      return await proxyToPythonBackend(formData, concurrency);
+    }
+
+    // Fallback: usar implementación TypeScript local
+    logger.info("Usando backend TypeScript local");
+    const returnRegex = pdfFormat === "PERMISO_CIRCULACION";
+    const encoder = new TextEncoder();
 
     const stream = new ReadableStream({
       async start(controller) {

@@ -1,35 +1,44 @@
-import React, { useEffect, useState } from "react";
-import { FixedSizeList as List } from "react-window";
+"use client";
+
+import React, { useEffect, useState, useCallback } from "react";
+import { VirtualizedResultsTable } from "./results";
 
 interface ExpandedViewProps {
   memoizedHeaders: string[];
-  memoizedRows: any[][];
+  memoizedRows: (string | number | null)[][];
   listHeight: number;
   setIsExpanded: (value: boolean) => void;
+  excelBlob?: Blob | null;
+  fileName?: string;
 }
 
+/**
+ * Vista expandida de la tabla con virtualización completa.
+ * Usa TanStack Table + TanStack Virtual para máximo rendimiento.
+ */
 const ExpandedView: React.FC<ExpandedViewProps> = ({
   memoizedHeaders,
   memoizedRows,
-  listHeight,
   setIsExpanded,
+  excelBlob,
+  fileName = "consolidado.xlsx",
 }) => {
-  const [dynamicHeight, setDynamicHeight] = useState(listHeight);
-  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const [dynamicHeight, setDynamicHeight] = useState(500);
 
-  // Ajustar dinámicamente el alto de la tabla según el tamaño de la pantalla
+  // Ajustar dinámicamente el alto según la ventana
   useEffect(() => {
     const updateHeight = () => {
-      const availableHeight = window.innerHeight - 180; // Restar espacio para encabezados y márgenes
-      setDynamicHeight(Math.min(availableHeight, memoizedRows.length * 35)); // Ajustar al contenido o al espacio disponible
+      // Restar espacio para header (60px) y padding (40px)
+      const availableHeight = window.innerHeight - 160;
+      setDynamicHeight(Math.max(400, availableHeight));
     };
 
     updateHeight();
     window.addEventListener("resize", updateHeight);
     return () => window.removeEventListener("resize", updateHeight);
-  }, [memoizedRows.length]);
+  }, []);
 
-  // Bloquear el scroll del body mientras la vista expandida está activa
+  // Bloquear scroll del body
   useEffect(() => {
     document.body.style.overflow = "hidden";
     return () => {
@@ -37,172 +46,142 @@ const ExpandedView: React.FC<ExpandedViewProps> = ({
     };
   }, []);
 
-  const renderVirtualRow = (
-    row: any,
-    headers: string[],
-    style: React.CSSProperties,
-    rowIndex: number
-  ) => (
-    <div
-      style={{
-        ...style,
-        display: "table",
-        tableLayout: "fixed",
-        width: "100%",
-        borderBottom: "1px solid #f8f9fa",
-        background: rowIndex === hoveredRow ? "#e9ecef" : rowIndex % 2 === 0 ? "#fff" : "#f8f9fa",
-        transition: "background 0.2s ease",
-      }}
-      key={rowIndex}
-      role="row"
-      onMouseEnter={() => setHoveredRow(rowIndex)}
-      onMouseLeave={() => setHoveredRow(null)}
-    >
-      {headers.map((header, colIdx) => (
-        <div
-          key={colIdx}
-          style={{
-            display: "table-cell",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            textAlign: "left",
-            borderRight: "1px solid #dee2e6",
-            padding: "0.5rem",
-            verticalAlign: "middle",
-          }}
-          role="cell"
-        >
-          {Array.isArray(row) ? row[colIdx] ?? "" : ""}
-        </div>
-      ))}
-    </div>
-  );
+  // Manejar tecla Escape para cerrar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsExpanded(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [setIsExpanded]);
+
+  const handleClose = useCallback(() => {
+    setIsExpanded(false);
+  }, [setIsExpanded]);
+
+  const handleDownload = useCallback(() => {
+    if (excelBlob) {
+      const url = URL.createObjectURL(excelBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  }, [excelBlob, fileName]);
 
   return (
     <div
-      className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center animate__animated animate__fadeIn"
+      className="position-fixed top-0 start-0 w-100 h-100"
       style={{
         zIndex: 3000,
-        left: 0,
-        top: 0,
-        width: "100vw",
-        height: "100vh",
-        minHeight: "100vh",
-        minWidth: "100vw",
-        background: "rgba(33, 37, 41, 0.92)",
-        overflow: "hidden", // Cambiado de "auto" a "hidden" para evitar scroll innecesario
-        transition: "background 0.2s",
+        background: "rgba(0, 0, 0, 0.85)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        flexDirection: "column",
+        padding: "20px",
+        animation: "fadeIn 0.2s ease-out",
+      }}
+      onClick={(e) => {
+        // Cerrar al hacer click fuera del contenido
+        if (e.target === e.currentTarget) {
+          handleClose();
+        }
       }}
     >
+      {/* Header con botón cerrar */}
       <div
-        className="bg-white rounded shadow w-100 h-100"
         style={{
-          maxWidth: "100vw",
-          maxHeight: "100vh",
-          overflow: "hidden", // Asegura que el contenido no desborde
-          position: "relative",
           display: "flex",
-          flexDirection: "column",
-          justifyContent: "flex-start",
-          boxShadow: "0 0 0 9999px rgba(33,37,41,0.92)",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "16px",
+          flexShrink: 0,
         }}
       >
-        <div
-          className="sticky-top bg-white p-2 d-flex justify-content-end"
-          style={{
-            zIndex: 3,
-            top: 0,
-            position: "sticky",
-          }}
-        >
-          <button
-            className="btn btn-danger d-flex align-items-center gap-2"
-            onClick={() => setIsExpanded(false)}
-          >
-            <i className="bi bi-x-lg"></i>
-            Cerrar Vista
-          </button>
-        </div>
-        <div
-          className="flex-grow-1 d-flex flex-column"
-          style={{ padding: "0.5rem", minHeight: 0 }}
-        >
-          <h4 className="mb-3 text-center fw-bold" style={{ marginTop: 0 }}>
-            <i className="bi bi-table me-2"></i>
-            Vista Expandida del Excel
-          </h4>
-          <div
+        <h4 style={{ color: "#fff", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18" />
+          </svg>
+          Vista Expandida
+          <span
             style={{
-              flex: 1, // Asegura que el contenido ocupe todo el espacio disponible
-              width: "100%",
-              overflow: "auto",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-start",
+              fontSize: "0.875rem",
+              backgroundColor: "rgba(255,255,255,0.2)",
+              padding: "4px 12px",
+              borderRadius: "20px",
+              marginLeft: "8px",
             }}
           >
-            <div
-              style={{
-                minWidth: "900px",
-                display: "flex",
-                flexDirection: "column",
-                flex: 1, // Asegura que la tabla ocupe todo el espacio vertical
-              }}
-            >
-              <table
-                className="table table-bordered table-striped table-sm mb-0"
-                style={{
-                  tableLayout: "fixed",
-                  width: "100%",
-                  borderCollapse: "separate",
-                  borderSpacing: 0,
-                }}
-              >
-                <thead className="table-light">
-                  <tr
-                    style={{
-                      display: "table",
-                      tableLayout: "fixed",
-                      width: "100%",
-                    }}
-                  >
-                    {memoizedHeaders.map((header: string, idx: number) => (
-                      <th
-                        key={idx}
-                        style={{
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          textAlign: "left",
-                          borderRight: "1px solid #dee2e6",
-                          borderBottom: "2px solid #dee2e6",
-                          background: "#f8f9fa",
-                          padding: "0.5rem",
-                        }}
-                      >
-                        {header}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-              </table>
-              <div style={{ display: "block", width: "100%", flex: 1 }}>
-                <List
-                  height={dynamicHeight} // Usar el alto dinámico calculado
-                  itemCount={memoizedRows.length}
-                  itemSize={35}
-                  width={"100%"}
-                >
-                  {({ index, style }) =>
-                    renderVirtualRow(memoizedRows[index], memoizedHeaders, style, index)
-                  }
-                </List>
-              </div>
-            </div>
-          </div>
+            {memoizedRows.length.toLocaleString()} filas
+          </span>
+        </h4>
+        <button
+          onClick={handleClose}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "10px 20px",
+            backgroundColor: "#ef4444",
+            border: "none",
+            borderRadius: "8px",
+            color: "#fff",
+            fontSize: "0.9rem",
+            fontWeight: 600,
+            cursor: "pointer",
+            transition: "background-color 0.2s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#dc2626")}
+          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "#ef4444")}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+          Cerrar (Esc)
+        </button>
+      </div>
+
+      {/* Contenedor de la tabla */}
+      <div
+        style={{
+          flex: 1,
+          backgroundColor: "#fff",
+          borderRadius: "12px",
+          overflow: "hidden",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div style={{ flex: 1, padding: "16px", overflow: "hidden" }}>
+          <VirtualizedResultsTable
+            headers={memoizedHeaders}
+            rows={memoizedRows}
+            height={dynamicHeight}
+            excelBlob={excelBlob}
+            fileName={fileName}
+            onDownload={excelBlob ? handleDownload : undefined}
+            showToolbar={true}
+          />
         </div>
       </div>
+
+      {/* Estilos de animación */}
+      <style jsx global>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 };

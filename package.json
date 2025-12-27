@@ -11,6 +11,8 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx --fix"
   },
   "dependencies": {
+    "@tanstack/react-table": "8.21.3",
+    "@tanstack/react-virtual": "3.13.13",
     "bootstrap": "5.3.3",
     "file-saver": "2.0.5",
     "next": "15.5.9",

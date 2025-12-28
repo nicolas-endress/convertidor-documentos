@@ -5,7 +5,7 @@ description = "Servicio Python para procesamiento de PDFs chilenos (CRT, SOAP, H
 authors = [{name = "Desarrollo", email = "dev@example.com"}]
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = {text = "AGPL-3.0-or-later"}
 
 dependencies = [
     "fastapi>=0.109.0",

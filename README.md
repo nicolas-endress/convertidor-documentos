@@ -35,60 +35,82 @@ La aplicación extrae datos relevantes de los PDFs utilizando extractores espec�
 
 ### Requisitos
 
-- **Node.js y npm:**
-  Asegúrate de tener instaladas versiones compatibles con Next.js.
+- **Frontend:** Bun ≥ 1.1 (usa los scripts de `package.json` con `bun run ...`).
+- **Backend:** Python ≥ 3.10 y `uv` (o `pip`) para el servicio `python-service/`.
 
-### Pasos
+### Frontend (Next.js)
 
-1. **Clona el repositorio:**
+1. Clona el repositorio y entra al proyecto
 
-   ```bash
-   git clone https://github.com/tu_usuario/tu_repositorio.git
-   cd tu_repositorio
-   ```
+```bash
+git clone https://github.com/tu_usuario/tu_repositorio.git
+cd tu_repositorio
+```
 
-2. **Instala las dependencias:**
+1. Instala dependencias
 
-   ```bash
-   npm install
-   ```
+```bash
+bun install
+```
 
-3. **Configura las variables de entorno:**
-   Crea un archivo `.env.local` en la raíz del proyecto y define, al menos, la variable:
+1. Configura variables de entorno
 
-   ```env
-   NEXT_PUBLIC_MAX_FILE_SIZE=5242880
-   ```
+Crea `.env.local` en la raíz con al menos:
 
-   (Puedes ajustar este valor según tus necesidades.)
+```env
+NEXT_PUBLIC_MAX_FILE_SIZE=5242880
+```
+
+### Backend (python-service)
+
+1. Entra al servicio Python
+
+```bash
+cd python-service
+```
+
+1. Instala dependencias (recomendado con uv)
+
+```bash
+uv sync
+# o
+pip install -r requirements.txt
+```
+
+1. (Opcional) Ejecutar en desarrollo
+
+```bash
+uv run uvicorn app.main:app --reload --port 8001
+```
+
+Variables clave: revisa `python-service/app/config.py` para límites de tamaño, concurrencia y CORS.
 
 ---
 
 ## Uso
 
-### En Desarrollo
+### En desarrollo
 
-1. **Inicia el servidor de desarrollo:**
-
-   ```bash
-   npm run dev
-   ```
-
-2. Abre la aplicación en [http://localhost:3000](http://localhost:3000).
-
-3. **Carga y Conversión:**
-   - Selecciona o arrastra los archivos PDF a la interfaz.
-   - Selecciona el formato correspondiente mediante los botones disponibles.
-   - Observa el progreso en tiempo real y, al finalizar, visualiza una vista previa del Excel.
-   - Descarga el archivo Excel generado haciendo clic en el botón correspondiente.
-
-### Ejecución de Pruebas
-
-Para ejecutar todos los tests automatizados, utiliza:
+1. Arranca el backend (opcional si solo consumes la API Next)
 
 ```bash
-npm run test
+cd python-service
+uv run uvicorn app.main:app --reload --port 8001
 ```
+
+1. Arranca el frontend
+
+```bash
+cd ..
+bun run dev
+```
+
+1. Abre [http://localhost:3000](http://localhost:3000) y carga tus PDFs. El sistema muestra progreso vía SSE y entrega el Excel generado.
+
+### Ejecución de pruebas
+
+- Frontend: `bun run test`
+- Backend: `cd python-service && uv run pytest`
 
 ---
 
@@ -96,22 +118,21 @@ npm run test
 
 El proyecto se organiza en las siguientes áreas:
 
-- **Frontend:**
-  Implementado en React, con componentes reutilizables como:
-  - `FileUpload` y `Parent` para la carga de archivos.
-  - `InstructionsModal` para mostrar instrucciones al usuario.
-  - `app/page.tsx` que gestiona el flujo de carga, procesamiento y visualización.
+- **Frontend (Next.js + React 19):**
+  - UI de carga y vista previa (`components/`), flujo principal en `app/page.tsx`.
+  - Ruta API en `app/api/convert/route.ts` que orquesta la conversión y expone progreso por SSE.
 
-- **Backend/API:**
-  - La ruta API en `app/api/convert/route.ts` recibe los archivos y el formato seleccionado.
-  - Procesa los PDFs de forma concurrente (usando `p-limit`) y envía actualizaciones en tiempo real mediante SSE.
+- **Backend (python-service, FastAPI):**
+  - Endpoint `/convert` que procesa múltiples PDFs con PyMuPDF, aplica extractores (CRT, SOAP, Homologación, Permiso) y devuelve Excel vía SSE.
+  - Configuración en `app/config.py` para tamaños máximos, concurrencia y límites de archivos.
 
-- **Extractores y Utilidades:**
-  - Los extractores (en la carpeta `extractors/`) se encargan de extraer datos específicos de cada formato.
-  - Las utilidades en `utils/` incluyen funciones para parseo, validaciones, generación del Excel y logging.
+- **Extractores y utilidades:**
+  - JavaScript/TypeScript: carpeta `extractors/` y `utils/` para parsing y validaciones.
+  - Python: servicios en `app/services/` y utilidades en `app/utils/` (mismo dominio funcional).
 
 - **Pruebas:**
-  - Test unitarios escritos en Jest y configurados en `jest.config.js` para asegurar la calidad del código.
+  - Frontend: Jest + Testing Library.
+  - Backend: Pytest (incluye pruebas de extractores y conversión).
 
 ---
 
@@ -127,6 +148,14 @@ El proyecto se organiza en las siguientes áreas:
 
 ## Licencia
 
-Este proyecto está bajo la licencia [MIT](LICENSE).
+Este proyecto está bajo la licencia [GNU AGPL v3](LICENSE).
+
+---
+
+## Cambios recientes
+
+- Configuración de Pyright en `python-service/` para eliminar falsos positivos de tipado en PyMuPDF.
+- Correcciones en `pdf_service_turbo.py` y scripts de benchmarks para manejo seguro de texto extraído.
+- Auditoría de dependencias: el backend usa PyMuPDF (licencia AGPL-3.0), alineando la licencia del repositorio a AGPL.
 
 ---

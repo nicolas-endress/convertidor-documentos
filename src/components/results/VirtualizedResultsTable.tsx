@@ -111,8 +111,16 @@ export default function VirtualizedResultsTable({
   const [globalFilter, setGlobalFilter] = useState("");
   const [hoveredRowIndex, setHoveredRowIndex] = useState<number | null>(null);
 
-  // Ref del contenedor scrollable
+  // Refs del contenedor scrollable y header
   const parentRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
+
+  // Sincronizar scroll horizontal entre header y body
+  const handleBodyScroll = useCallback(() => {
+    if (parentRef.current && headerRef.current) {
+      headerRef.current.scrollLeft = parentRef.current.scrollLeft;
+    }
+  }, []);
 
   // Calcular anchos de columna basado en contenido
   const columnWidths = useMemo(() => {
@@ -249,8 +257,23 @@ export default function VirtualizedResultsTable({
     );
   }
 
+  // Determinar si estamos en modo expandido (cuando onExpand existe, estamos en preview)
+  const isPreviewMode = !!onExpand;
+
+  // Altura para el contenedor de scroll
+  // En preview: altura fija pasada como prop
+  // En expandido: usamos la altura pasada (que viene calculada desde ExpandedView)
+  const scrollContainerHeight = height;
+
   return (
-    <div className="virtualized-table-container" style={{ width: "100%" }}>
+    <div
+      className="virtualized-table-container"
+      style={{
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       {/* Toolbar */}
       {showToolbar && (
         <ResultsToolbar
@@ -264,115 +287,128 @@ export default function VirtualizedResultsTable({
         />
       )}
 
-      {/* Contenedor de la tabla */}
+      {/* Contenedor exterior con borde */}
       <div
         style={{
           border: "1px solid #e5e7eb",
           borderRadius: "8px",
-          overflow: "hidden",
           backgroundColor: "#fff",
           boxShadow: "0 1px 3px 0 rgb(0 0 0 / 0.1)",
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
         }}
       >
-        {/* Header sticky */}
-        <div
-          style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 10,
-            backgroundColor: "#f8fafc",
-            borderBottom: "2px solid #e5e7eb",
-            overflowX: "auto",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              minWidth: totalWidth,
-            }}
-          >
-            {table.getHeaderGroups().map((headerGroup) =>
-              headerGroup.headers.map((header, idx) => (
-                <div
-                  key={header.id}
-                  onClick={header.column.getToggleSortingHandler()}
-                  style={{
-                    width: columnWidths[idx],
-                    minWidth: columnWidths[idx],
-                    maxWidth: columnWidths[idx],
-                    padding: "12px",
-                    fontWeight: 600,
-                    fontSize: "0.75rem",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                    color: "#374151",
-                    cursor: header.column.getCanSort() ? "pointer" : "default",
-                    userSelect: "none",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    borderRight: "1px solid #e5e7eb",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                  title={String(
-                    flexRender(header.column.columnDef.header, header.getContext())
-                  )}
-                >
-                  {flexRender(header.column.columnDef.header, header.getContext())}
-                  {header.column.getIsSorted() && (
-                    <span style={{ marginLeft: "4px" }}>
-                      {header.column.getIsSorted() === "asc" ? "↑" : "↓"}
-                    </span>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Cuerpo virtualizado */}
+        {/* Contenedor con scroll horizontal y vertical - altura fija */}
         <div
           ref={parentRef}
+          onScroll={handleBodyScroll}
           style={{
-            height: Math.min(height, tableRows.length * rowHeight + 20),
-            overflowY: "auto",
+            height: scrollContainerHeight,
+            maxHeight: scrollContainerHeight,
             overflowX: "auto",
+            overflowY: "auto",
+            scrollbarWidth: "auto",
+            scrollbarColor: "#94a3b8 #f1f5f9",
           }}
         >
-          <div
-            style={{
-              height: totalSize,
-              width: totalWidth,
-              position: "relative",
-            }}
-          >
-            {virtualItems.map((virtualRow) => {
-              const row = tableRows[virtualRow.index];
-              const rowData = row.original;
-              const rowArray = headers.map((h) => rowData[h]);
+          {/* Contenedor interno con ancho mínimo = suma de columnas */}
+          <div style={{ minWidth: totalWidth, width: "fit-content" }}>
+            {/* Header sticky */}
+            <div
+              ref={headerRef}
+              style={{
+                position: "sticky",
+                top: 0,
+                zIndex: 10,
+                backgroundColor: "#f8fafc",
+                borderBottom: "2px solid #e5e7eb",
+                display: "flex",
+                width: totalWidth,
+              }}
+            >
+              {table.getHeaderGroups().map((headerGroup) =>
+                headerGroup.headers.map((header, idx) => (
+                  <div
+                    key={header.id}
+                    onClick={header.column.getToggleSortingHandler()}
+                    style={{
+                      width: columnWidths[idx],
+                      minWidth: columnWidths[idx],
+                      maxWidth: columnWidths[idx],
+                      padding: "12px",
+                      fontWeight: 600,
+                      fontSize: "0.75rem",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      color: "#374151",
+                      cursor: header.column.getCanSort() ? "pointer" : "default",
+                      userSelect: "none",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      borderRight: "1px solid #e5e7eb",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      backgroundColor: "#f8fafc",
+                    }}
+                    title={String(
+                      flexRender(header.column.columnDef.header, header.getContext())
+                    )}
+                  >
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {header.column.getIsSorted() && (
+                      <span style={{ marginLeft: "4px" }}>
+                        {header.column.getIsSorted() === "asc" ? "↑" : "↓"}
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
 
-              return (
-                <TableRow
-                  key={virtualRow.key}
-                  row={rowArray}
-                  headers={headers}
-                  columnWidths={columnWidths}
-                  isEven={virtualRow.index % 2 === 0}
-                  isHovered={hoveredRowIndex === virtualRow.index}
-                  onHover={(hover) => handleRowHover(virtualRow.index, hover)}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: rowHeight,
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                />
-              );
-            })}
+            {/* Cuerpo virtualizado */}
+            <div
+              style={{
+                position: "relative",
+                width: totalWidth,
+              }}
+            >
+              <div
+                style={{
+                  height: totalSize,
+                  width: totalWidth,
+                  position: "relative",
+                }}
+              >
+                {virtualItems.map((virtualRow) => {
+                  const row = tableRows[virtualRow.index];
+                  const rowData = row.original;
+                  const rowArray = headers.map((h) => rowData[h]);
+
+                  return (
+                    <TableRow
+                      key={virtualRow.key}
+                      row={rowArray}
+                      headers={headers}
+                      columnWidths={columnWidths}
+                      isEven={virtualRow.index % 2 === 0}
+                      isHovered={hoveredRowIndex === virtualRow.index}
+                      onHover={(hover) => handleRowHover(virtualRow.index, hover)}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: totalWidth,
+                        height: rowHeight,
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -387,6 +423,7 @@ export default function VirtualizedResultsTable({
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            flexShrink: 0,
           }}
         >
           <span>

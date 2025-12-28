@@ -1,0 +1,12 @@
+{
+  "include": ["app", "tests", "benchmarks"],
+  "exclude": ["**/__pycache__", ".venv"],
+  "pythonVersion": "3.10",
+  "pythonPlatform": "All",
+  "typeCheckingMode": "off",
+  "reportMissingTypeStubs": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownParameterType": "none"
+}

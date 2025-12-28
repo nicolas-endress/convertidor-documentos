@@ -1,0 +1,15 @@
+{
+  "include": ["python-service/app", "python-service/tests", "python-service/benchmarks"],
+  "exclude": ["**/__pycache__", "**/node_modules", "**/.venv"],
+  "pythonVersion": "3.10",
+  "pythonPlatform": "All",
+  "typeCheckingMode": "off",
+  "reportMissingTypeStubs": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownParameterType": "none",
+  "reportUnknownReturnType": "none",
+  "reportGeneralTypeIssues": "none",
+  "reportMissingImports": "none"
+}

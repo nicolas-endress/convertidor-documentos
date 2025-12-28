@@ -66,3 +66,17 @@ strict = true
 asyncio_mode = "auto"
 testpaths = ["tests"]
 addopts = "-v --cov=app --cov-report=term-missing"
+
+[tool.pyright]
+include = ["app", "tests", "benchmarks"]
+exclude = ["**/__pycache__", ".venv"]
+pythonVersion = "3.10"
+typeCheckingMode = "off"
+reportMissingTypeStubs = "none"
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownParameterType = "none"
+reportUnknownReturnType = "none"
+reportGeneralTypeIssues = "none"
+reportMissingImports = "none"
